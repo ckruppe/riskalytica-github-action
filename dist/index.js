@@ -406,7 +406,7 @@ async function main() {
     body.append('repositoryName', projectName);
     body.append('dependencies', new Blob([gzipped]), 'compressed.ortpack');
     // ── Upload to API ───────────────────────────────────────────
-    const response = await fetch(apiUri, {
+    const response = await fetch(`${apiUri}api/analysis/dependencies`, {
         method: 'POST',
         headers: {
             'x-horusec-authorization': apiToken,
