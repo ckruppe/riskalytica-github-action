@@ -1,4 +1,4 @@
-name: Security bundle
+name: Riskalytica
 description: Run Horusec, run ORT analyzer, upload compressed ORT analyzer result, post PR comment, fail only at the end
 
 inputs:
@@ -82,7 +82,7 @@ runs:
       continue-on-error: true
       uses: oss-review-toolkit/ort-ci-github-action@v1.1.0
       with:
-        run: analyzer
+        run: analyze -f JSON
 
     - name: Compress and upload ORT analyzer result
       id: upload
