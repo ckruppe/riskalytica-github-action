@@ -1,0 +1,152 @@
+name: Security bundle
+description: Run Horusec, run ORT analyzer, upload compressed ORT analyzer result, post PR comment, fail only at the end
+
+inputs:
+  api-uri:
+    description: Horusec API URI, also used by the upload script
+    required: true
+
+  api-token:
+    description: Horusec token, also used by the upload script
+    required: true
+
+outputs:
+  horusec-exit-code:
+    description: Horusec exit code
+    value: ${{ steps.horusec.outputs.exit_code }}
+
+  ort-outcome:
+    description: ORT analyzer step outcome
+    value: ${{ steps.ort.outcome }}
+
+  ort-analyzer-result-path:
+    description: Path to the ORT analyzer result file
+    value: ${{ steps.ort.outputs.results-analyzer-path }}
+
+  upload-exit-code:
+    description: Upload script exit code
+    value: ${{ steps.upload.outputs.exit_code }}
+
+  project-name:
+    description: Project name resolved from Horusec config
+    value: ${{ steps.upload.outputs.project_name }}
+
+  has-violations:
+    description: Whether there are unapproved license violations
+    value: ${{ steps.upload.outputs.has_violations }}
+
+  violation-count:
+    description: Number of unapproved license violations
+    value: ${{ steps.upload.outputs.violation_count }}
+
+  comment-path:
+    description: Path to the generated PR comment markdown file
+    value: ${{ steps.upload.outputs.comment_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run Horusec
+      id: horusec
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        HORUSEC_CLI_HORUSEC_API_URI: ${{ inputs.api-uri }}
+        HORUSEC_CLI_REPOSITORY_AUTHORIZATION: ${{ inputs.api-token }}
+      run: |
+        set +e
+
+        curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/main/deployments/scripts/install.sh | bash -s latest-beta
+        install_rc=$?
+
+        if [ "$install_rc" -ne 0 ]; then
+          echo "Horusec install failed with exit code $install_rc"
+          echo "exit_code=$install_rc" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        horusec start -p="./" -e="true"
+        horusec_rc=$?
+
+        echo "exit_code=$horusec_rc" >> "$GITHUB_OUTPUT"
+
+        if [ "$horusec_rc" -ne 0 ]; then
+          echo "Horusec finished with non-zero exit code: $horusec_rc"
+        fi
+
+        exit 0
+
+    - name: Run ORT analyzer
+      id: ort
+      if: ${{ always() }}
+      continue-on-error: true
+      uses: oss-review-toolkit/ort-ci-github-action@v1.1.0
+      with:
+        run: analyzer
+
+    - name: Compress and upload ORT analyzer result
+      id: upload
+      if: ${{ always() }}
+      shell: bash
+      env:
+        API_URI: ${{ inputs.api-uri }}
+        API_TOKEN: ${{ inputs.api-token }}
+        ORT_ANALYZER_RESULT_PATH: ${{ steps.ort.outputs.results-analyzer-path }}
+        PROJECT_ROOT: ${{ github.workspace }}
+      run: |
+        set +e
+        node "$GITHUB_ACTION_PATH/scripts/upload-ort-result.mjs"
+        upload_rc=$?
+        echo "exit_code=$upload_rc" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - name: Add workflow summary
+      if: ${{ always() && steps.upload.outputs.comment_path != '' }}
+      shell: bash
+      run: |
+        cat "${{ steps.upload.outputs.comment_path }}" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Find existing PR comment
+      id: pr_comment
+      if: ${{ always() && github.event_name == 'pull_request' && steps.upload.outputs.comment_path != '' }}
+      uses: peter-evans/find-comment@v3
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: "github-actions[bot]"
+        body-includes: "<!-- license-report-comment -->"
+
+    - name: Create or update PR comment
+      if: ${{ always() && github.event_name == 'pull_request' && steps.upload.outputs.comment_path != '' }}
+      uses: peter-evans/create-or-update-comment@v5
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-id: ${{ steps.pr_comment.outputs.comment-id }}
+        body-path: ${{ steps.upload.outputs.comment_path }}
+        edit-mode: replace
+
+    - name: Final decision
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        echo "Horusec exit: ${{ steps.horusec.outputs.exit_code }}"
+        echo "ORT outcome:  ${{ steps.ort.outcome }}"
+        echo "Upload exit:  ${{ steps.upload.outputs.exit_code }}"
+
+        failed=0
+
+        if [ "${{ steps.horusec.outputs.exit_code }}" != "0" ]; then
+          echo "::error::Horusec reported failure"
+          failed=1
+        fi
+
+        if [ "${{ steps.ort.outcome }}" != "success" ]; then
+          echo "::error::ORT analyzer failed"
+          failed=1
+        fi
+
+        if [ "${{ steps.upload.outputs.exit_code }}" != "0" ]; then
+          echo "::error::Upload script failed"
+          failed=1
+        fi
+
+        exit "$failed"

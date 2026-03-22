@@ -1,0 +1,23 @@
+{
+  "name": "riscalytica-action",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable GitHub composite action: Horusec + ORT + upload + PR comment",
+  "scripts": {
+    "build": "ncc build scripts/upload-ort-result.ts -o dist --license licenses.txt",
+    "test": "node --test tests/*.test.mjs",
+    "lint:action": "actionlint",
+    "lint:shell": "shellcheck scripts/*.sh || true"
+  },
+  "dependencies": {
+    "ortcompressor": "file:.yalc/ortcompressor"
+  },
+  "devDependencies": {
+    "@nfq/eslint-config": "^4.0.0-beta.23",
+    "@vercel/ncc": "^0.38.4",
+    "@types/node": "^25.5.0",
+    "eslint": "^9.39.4",
+    "typescript": "^5.9.3"
+  }
+}
