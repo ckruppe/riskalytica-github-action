@@ -95,7 +95,7 @@ runs:
         PROJECT_ROOT: ${{ github.workspace }}
       run: |
         set +e
-        node "$GITHUB_ACTION_PATH/scripts/upload-ort-result.mjs"
+        node "$GITHUB_ACTION_PATH/dist/index.js"
         upload_rc=$?
         echo "exit_code=$upload_rc" >> "$GITHUB_OUTPUT"
         exit 0
