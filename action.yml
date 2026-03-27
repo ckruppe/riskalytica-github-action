@@ -81,20 +81,7 @@ runs:
       if: ${{ always() }}
       uses: oss-review-toolkit/ort-ci-github-action@v1.1.0
       with:
-        run: analyze -f JSON
-
-    - name: Debug ORT analyzer result
-      if: ${{ always() }}
-      shell: bash
-      run: |
-        echo "ORT step outcome: ${{ steps.ort.outcome }}"
-        echo "ORT analyzer result path: ${{ steps.ort.outputs.results-analyzer-path }}"
-        if [ -f "${{ steps.ort.outputs.results-analyzer-path }}" ]; then
-          echo "Analyzer result file exists. Showing first 20 lines:"
-          head -20 "${{ steps.ort.outputs.results-analyzer-path }}"
-        else
-          echo "Analyzer result file does NOT exist!"
-        fi
+        run: analyzer
 
     - name: Compress and upload ORT analyzer result
       id: upload
