@@ -21,7 +21,7 @@ outputs:
 
   ort-analyzer-result-path:
     description: Path to the ORT analyzer result file
-    value: ${{ steps.ort.outputs.results-analyzer-path }}
+    value: ${{ env.ORT_RESULTS_ANALYZER_PATH }}
 
   upload-exit-code:
     description: Upload script exit code
@@ -90,7 +90,7 @@ runs:
       env:
         API_URI: ${{ inputs.api-uri }}
         API_TOKEN: ${{ inputs.api-token }}
-        ORT_ANALYZER_RESULT_PATH: ${{ steps.ort.outputs.results-analyzer-path }}
+        ORT_ANALYZER_RESULT_PATH: ${{ env.ORT_RESULTS_ANALYZER_PATH }}
         PROJECT_ROOT: ${{ github.workspace }}
       run: |
         set +e
