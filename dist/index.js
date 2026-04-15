@@ -96,7 +96,7 @@ class StringTable {
     const collector = new Set();
     StringTable.collectProjectStrings(collector, result.projects);
     StringTable.collectPackageStrings(collector, result.packages);
-    StringTable.collectIssueStrings(collector, result.issues);
+    StringTable.collectIssueStrings(collector, result.issues ?? {});
     StringTable.collectGraphStrings(collector, result.dependency_graphs);
     const entries = Array.from(collector).filter(Boolean);
     return new StringTable(entries);
@@ -120,7 +120,7 @@ class StringTable {
     }
   }
   static collectIssueStrings(collector, issues) {
-    for (const [project, subIssues] of Object.entries(issues)) {
+    for (const [project, subIssues] of Object.entries(issues ?? {})) {
       collector.add(project);
       for (const issue of subIssues) {
         for (const token of tokenize(issue.message)) {
@@ -218,7 +218,7 @@ class OrtCompressor {
     }
   }
   static writeIssues(writer, stringTable, result) {
-    const issueEntries = Object.entries(result.issues);
+    const issueEntries = Object.entries(result.issues ?? {});
     writer.writeUint16(issueEntries.length);
     for (const [project, subIssues] of issueEntries) {
       writer.writeUint16(stringTable.indexOf(project));
